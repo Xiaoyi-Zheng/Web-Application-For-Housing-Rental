@@ -1,0 +1,40 @@
+stages:
+  - build_backend
+  - test_backend
+  - build_frontend
+  - test_frontend
+variables:
+  IMAGE: ${DOCKER_USER}/${DOCKER_REGISTRY}
+
+build_backend:
+  stage: build_backend
+  image: docker:19.03.1
+  services:
+    - docker:19.03.1-dind
+  variables:
+    DOCKER_DRIVER: overlay2
+    DOCKER_TLS_CERTDIR: "/certs"
+  script:
+    - echo $DOCKER_AUTH_CONFIG
+    - docker login -u $DOCKER_USER -p $DOCKER_PASS 
+    - docker pull shimengchen/backend:latest || true
+    - docker build --cache-from shimengchen/backend:latest -t shimengchen/backend:latest backend
+    - docker run shimengchen/backend:latest python3 manage.py test --settings=hello_world.settings.development
+    - docker push shimengchen/backend:latest
+
+build_frontend:
+  stage: build_frontend
+  image: docker:19.03.1
+  services:
+    - docker:19.03.1-dind
+  variables:
+    DOCKER_DRIVER: overlay2
+    DOCKER_TLS_CERTDIR: "/certs"
+  script:
+    - echo $DOCKER_AUTH_CONFIG
+    - docker login -u $DOCKER_USER -p $DOCKER_PASS 
+    - docker pull shimengchen/frontend:latest || true
+    - docker build --cache-from shimengchen/frontend:latest -t shimengchen/frontend:latest frontend
+    - docker run shimengchen/frontend:latest npm run test --coverage
+    - docker push shimengchen/frontend:latest
+
